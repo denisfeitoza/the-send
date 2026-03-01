@@ -430,39 +430,52 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
             const startRecordingCycle = () => {
                 if (!isListeningRef.current || sttEngineRef.current !== "groq") return;
 
-                const recorder = new MediaRecorder(stream, { mimeType });
-                const chunks: Blob[] = [];
+                // Check stream is still alive
+                const tracks = stream.getAudioTracks();
+                if (!tracks.length || tracks[0].readyState !== "live") {
+                    console.warn("[Groq] Stream track not alive, stopping");
+                    return;
+                }
 
-                recorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) chunks.push(e.data);
-                };
+                try {
+                    const recorder = new MediaRecorder(stream, { mimeType });
+                    const chunks: Blob[] = [];
 
-                recorder.onstop = () => {
-                    // IMMEDIATELY start the next cycle (< 1ms gap)
-                    if (isListeningRef.current && sttEngineRef.current === "groq") {
-                        startRecordingCycle();
-                    }
+                    recorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) chunks.push(e.data);
+                    };
 
-                    // Then process the collected audio (async, doesn't block next recording)
-                    if (chunks.length > 0) {
-                        const blob = new Blob(chunks, { type: mimeType });
-                        console.log(`[Groq] 📤 Sending ${chunks.length} chunks, ${blob.size} bytes`);
-                        sendAudioToGroq(blob);
-                    }
-                };
+                    recorder.onstop = () => {
+                        // Small delay before next cycle to let stream stabilize
+                        if (isListeningRef.current && sttEngineRef.current === "groq") {
+                            setTimeout(startRecordingCycle, 50);
+                        }
 
-                recorder.start(1000); // timeslice for progress feedback
-                mediaRecorderRef.current = recorder;
-                setApiStatus(prev => ({ ...prev, groq: "recording" }));
-                const currentInterval = intervalSecondsRef.current;
-                console.log(`[Groq] 🎙️ Recording cycle started (${currentInterval}s)`);
+                        // Process the collected audio (async, doesn't block next recording)
+                        if (chunks.length > 0) {
+                            const blob = new Blob(chunks, { type: mimeType });
+                            console.log(`[Groq] 📤 Sending ${chunks.length} chunks, ${blob.size} bytes`);
+                            sendAudioToGroq(blob);
+                        }
+                    };
 
-                // Stop this recorder after interval — onstop will immediately start the next one
-                groqTimerRef.current = setTimeout(() => {
-                    if (recorder.state === "recording") {
-                        recorder.stop();
-                    }
-                }, currentInterval * 1000);
+                    recorder.start(1000); // timeslice for progress feedback
+                    mediaRecorderRef.current = recorder;
+                    setApiStatus(prev => ({ ...prev, groq: "recording" }));
+                    const currentInterval = intervalSecondsRef.current;
+                    console.log(`[Groq] 🎙️ Recording cycle started (${currentInterval}s)`);
+
+                    // Stop this recorder after interval — onstop will start the next one
+                    groqTimerRef.current = setTimeout(() => {
+                        if (recorder.state === "recording") {
+                            recorder.stop();
+                        }
+                    }, currentInterval * 1000);
+                } catch (err) {
+                    console.warn("[Groq] MediaRecorder start failed, retrying in 200ms:", err);
+                    // Retry after a short delay
+                    setTimeout(startRecordingCycle, 200);
+                }
             };
 
             startRecordingCycle();
