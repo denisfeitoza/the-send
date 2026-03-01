@@ -3,8 +3,6 @@
 import { useLiveTranslator, LANGUAGE_OPTIONS, SupportedLanguage, STTEngine, ApiStatus } from "@/contexts/TranscriptionContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Slider } from "@/components/ui/slider";
 import {
   Mic,
   MicOff,
@@ -180,20 +178,21 @@ export default function LiveTranslatorPage() {
               </div>
 
               {/* Interval */}
-              <div className="col-span-2 flex items-center gap-3 bg-slate-800/30 border border-white/5 rounded-lg px-3 py-2">
+              <div className="col-span-2 flex items-center gap-3 bg-slate-800/30 border border-white/5 rounded-lg px-3 py-2.5">
                 <Clock className="w-4 h-4 text-violet-400 shrink-0" />
                 <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold shrink-0">Interval</label>
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500">5s</span>
-                  <Slider
-                    min={5} max={60} step={5}
-                    value={[intervalSeconds]}
-                    onValueChange={(vals) => setIntervalSeconds(vals[0])}
-                    className="flex-1"
-                  />
-                  <span className="text-[10px] text-slate-500">60s</span>
-                </div>
-                <span className={`text-sm font-bold min-w-[36px] text-center px-2 py-0.5 rounded-md ${isListening
+                <span className="text-[10px] text-slate-500 shrink-0">5s</span>
+                <input
+                  type="range"
+                  min={5}
+                  max={60}
+                  step={5}
+                  value={intervalSeconds}
+                  onChange={(e) => setIntervalSeconds(Number(e.target.value))}
+                  className="flex-1 h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-violet-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-violet-500 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-violet-500 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                />
+                <span className="text-[10px] text-slate-500 shrink-0">60s</span>
+                <span className={`text-sm font-bold min-w-[40px] text-center px-2 py-1 rounded-md ${isListening
                   ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
                   : "bg-slate-700/50 text-slate-300"
                   }`}>{intervalSeconds}s</span>
