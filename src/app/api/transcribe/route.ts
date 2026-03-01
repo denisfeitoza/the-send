@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY || "GROQ_KEY_NOT_SET";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
 // Common Whisper hallucination patterns to filter out
 const HALLUCINATION_PATTERNS = [
@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
 
         console.log(`[Groq STT] Audio: ${audioFile.size} bytes, type: ${audioFile.type}, lang: ${language}`);
 
-        if (GROQ_API_KEY === "GROQ_KEY_NOT_SET") {
-            return NextResponse.json({ error: "Groq API key not configured" }, { status: 500 });
+        if (!GROQ_API_KEY) {
+            return NextResponse.json({ error: "Groq API key not configured. Set GROQ_API_KEY env variable." }, { status: 500 });
         }
 
         // Build Groq API form data — pass the original File directly (no re-encoding!)
