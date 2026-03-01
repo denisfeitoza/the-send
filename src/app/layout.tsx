@@ -17,12 +17,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "The Send — Live Translator",
+  title: "AI Translator — Live Speech Translation",
   description: "Real-time speech transcription and AI-powered translation",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "The Send",
+    title: "AI Translator",
   },
 };
 

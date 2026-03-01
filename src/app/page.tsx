@@ -99,8 +99,8 @@ export default function LiveTranslatorPage() {
           <div className="flex items-center gap-2">
             <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isListening ? "bg-red-500 animate-pulse shadow-lg shadow-red-500/50" : "bg-slate-600"}`} />
             <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
-              <span className="sm:hidden">The Send</span>
-              <span className="hidden sm:inline">The Send: Live Translator</span>
+              <span className="sm:hidden">AI Translator</span>
+              <span className="hidden sm:inline">AI Translator — Live Speech Translation</span>
             </h1>
           </div>
 
