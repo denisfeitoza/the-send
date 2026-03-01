@@ -4,7 +4,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 
 export async function POST(req: NextRequest) {
     try {
-        const { text, sourceLang, targetLang } = await req.json();
+        const { text, sourceLang, targetLang, previousContext } = await req.json();
 
         if (!text || !targetLang) {
             return NextResponse.json({ error: "Missing text or targetLang" }, { status: 400 });
@@ -24,6 +24,14 @@ export async function POST(req: NextRequest) {
         const sourceLabel = langNames[sourceLang] || sourceLang || "auto-detect";
         const targetLabel = langNames[targetLang] || targetLang;
 
+        // Build context block if previous translations exist
+        const contextBlock = previousContext && previousContext.length > 0
+            ? `\n\nCONVERSATION CONTEXT (last ${previousContext.length} translations for coherence):
+${previousContext.map((t: string, i: number) => `[${i + 1}] ${t}`).join("\n")}
+
+Use this context ONLY to maintain conversational coherence (pronouns, subject references, topic continuity). If the current text is unrelated to the context, IGNORE the context completely and focus solely on translating the current text accurately.`
+            : "";
+
         const systemPrompt = `You are an expert real-time interpreter providing live translation during a conversation.
 
 YOUR TASK: Translate the spoken text ${sourceLabel !== "auto-detect" ? `from ${sourceLabel} ` : ""}into ${targetLabel}.
@@ -35,7 +43,7 @@ CRITICAL RULES:
 4. If the text is already in ${targetLabel}, return it unchanged.
 5. For proper nouns (names, places, brands), keep them in their original form unless there's a well-known ${targetLabel} equivalent.
 6. Handle incomplete sentences or speech fragments gracefully — translate what's there without adding missing context.
-7. For Arabic dialects, understand that the speaker may mix Modern Standard Arabic with dialect — translate the meaning, not word-by-word.`;
+7. For Arabic dialects, understand that the speaker may mix Modern Standard Arabic with dialect — translate the meaning, not word-by-word.${contextBlock}`;
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -47,7 +55,7 @@ CRITICAL RULES:
                 model: "google/gemini-2.5-flash",
                 messages: [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: text },
+                    { role: "user", content: `Translate this:\n${text}` },
                 ],
                 max_tokens: 4096,
                 temperature: 0.1,

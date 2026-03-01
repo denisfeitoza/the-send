@@ -161,13 +161,13 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
     }, [sttEngine]);
 
     // ─── Translation API call ──────────────────────────
-    const translateText = useCallback(async (text: string): Promise<string> => {
+    const translateText = useCallback(async (text: string, previousContext?: string[]): Promise<string> => {
         setApiStatus(prev => ({ ...prev, translation: "sending" }));
         try {
             const res = await fetch("/api/translate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text, sourceLang, targetLang }),
+                body: JSON.stringify({ text, sourceLang, targetLang, previousContext }),
             });
             if (!res.ok) throw new Error("Translation request failed");
             const data = await res.json();
@@ -193,10 +193,11 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
         pendingBufferRef.current = "";
         setPendingText("");
 
-        // Translate
+        // Translate with last 2 translations as context
         setIsTranslating(true);
         try {
-            const translated = await translateText(text);
+            const recentContext = translations.slice(-2).map(t => t.text);
+            const translated = await translateText(text, recentContext);
             if (translated) {
                 setTranslations(prev => [...prev, {
                     id: crypto.randomUUID(),
@@ -210,7 +211,7 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
         } finally {
             setIsTranslating(false);
         }
-    }, [translateText]);
+    }, [translateText, translations]);
 
     // ─── Auto-translate timer ─────────────────────────
     useEffect(() => {
@@ -370,10 +371,12 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
                 timestamp: new Date(),
             }]);
 
-            // IMMEDIATELY start translating (no waiting for timer)
+            // IMMEDIATELY start translating with last 2 translations as context
             setIsTranslating(true);
             try {
-                const translated = await translateText(text);
+                // Grab last 2 translations for conversational context
+                const recentContext = translations.slice(-2).map(t => t.text);
+                const translated = await translateText(text, recentContext);
                 if (translated) {
                     setTranslations(prev => [...prev, {
                         id: crypto.randomUUID(),
@@ -392,7 +395,7 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
         } finally {
             setApiStatus(prev => ({ ...prev, groq: "idle" }));
         }
-    }, [sourceLang, translateText]);
+    }, [sourceLang, translateText, translations]);
 
     const startGroqListening = useCallback(async () => {
         try {
