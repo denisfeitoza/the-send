@@ -22,8 +22,9 @@ import {
   Globe,
   Settings,
   ArrowDown,
+  RefreshCw,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 export default function LiveTranslatorPage() {
   const {
@@ -45,15 +46,42 @@ export default function LiveTranslatorPage() {
   const [mobileView, setMobileView] = useState<"translation" | "transcription">("translation");
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const translationEndRef = useRef<HTMLDivElement>(null);
+  const transcriptScrollRef = useRef<HTMLDivElement>(null);
+  const translationScrollRef = useRef<HTMLDivElement>(null);
+  const [transcriptAtBottom, setTranscriptAtBottom] = useState(true);
+  const [translationAtBottom, setTranslationAtBottom] = useState(true);
 
-  // Auto-scroll to bottom
+  // Check if a scroll container is near bottom
+  const isNearBottom = (el: HTMLElement) => {
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+
+  // Track scroll position for transcription panel
+  const onTranscriptScroll = useCallback(() => {
+    if (transcriptScrollRef.current) {
+      setTranscriptAtBottom(isNearBottom(transcriptScrollRef.current));
+    }
+  }, []);
+
+  // Track scroll position for translation panel
+  const onTranslationScroll = useCallback(() => {
+    if (translationScrollRef.current) {
+      setTranslationAtBottom(isNearBottom(translationScrollRef.current));
+    }
+  }, []);
+
+  // Smart auto-scroll: only if user is at bottom
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [transcripts, pendingText]);
+    if (transcriptAtBottom) {
+      transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [transcripts, pendingText, transcriptAtBottom]);
 
   useEffect(() => {
-    translationEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [translations]);
+    if (translationAtBottom) {
+      translationEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [translations, translationAtBottom]);
 
   // Show summary modal when generated
   useEffect(() => {
@@ -166,8 +194,8 @@ export default function LiveTranslatorPage() {
                   <span className="text-[10px] text-slate-500">60s</span>
                 </div>
                 <span className={`text-sm font-bold min-w-[36px] text-center px-2 py-0.5 rounded-md ${isListening
-                    ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
-                    : "bg-slate-700/50 text-slate-300"
+                  ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                  : "bg-slate-700/50 text-slate-300"
                   }`}>{intervalSeconds}s</span>
               </div>
             </div>
@@ -235,14 +263,13 @@ export default function LiveTranslatorPage() {
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Secondary actions */}
+          {/* Reset Subject */}
           <Button
-            variant="outline"
-            onClick={clearScreen}
-            className="border-white/10 hover:bg-white/5 h-8 sm:h-auto px-2 sm:px-5 sm:py-5 rounded-lg sm:rounded-xl font-semibold"
+            onClick={() => { clearScreen(); setTranscriptAtBottom(true); setTranslationAtBottom(true); }}
+            className="bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white h-8 sm:h-auto px-3 sm:px-5 sm:py-5 rounded-lg sm:rounded-xl font-semibold transition-all active:scale-95"
           >
-            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Clear</span>
+            <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New Subject</span>
           </Button>
           <Button
             variant="outline"
@@ -306,8 +333,8 @@ export default function LiveTranslatorPage() {
               </div>
               <span className="text-xs text-slate-500">{translations.length}</span>
             </div>
-            <CardContent className="flex-1 p-0 overflow-hidden">
-              <ScrollArea className="h-full px-4 py-3 sm:p-5">
+            <CardContent className="flex-1 p-0 overflow-hidden relative">
+              <div ref={translationScrollRef} onScroll={onTranslationScroll} className="h-full overflow-y-auto px-4 py-3 sm:p-5 scroll-smooth">
                 {translations.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3 min-h-[150px]">
                     <Languages className={`w-8 h-8 opacity-20 ${isTranslating ? "animate-pulse" : ""}`} />
@@ -332,7 +359,16 @@ export default function LiveTranslatorPage() {
                     <div ref={translationEndRef} />
                   </div>
                 )}
-              </ScrollArea>
+              </div>
+              {/* Scroll to live button */}
+              {!translationAtBottom && translations.length > 0 && (
+                <button
+                  onClick={() => { translationEndRef.current?.scrollIntoView({ behavior: "smooth" }); setTranslationAtBottom(true); }}
+                  className="absolute bottom-3 right-3 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-full px-3 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-1 transition-all animate-bounce"
+                >
+                  <ArrowDown className="w-3 h-3" /> Live
+                </button>
+              )}
             </CardContent>
           </Card>
 
@@ -348,8 +384,8 @@ export default function LiveTranslatorPage() {
               </div>
               <span className="text-xs text-slate-500">{transcripts.length}</span>
             </div>
-            <CardContent className="flex-1 p-0 overflow-hidden">
-              <ScrollArea className="h-full px-4 py-3 sm:p-5">
+            <CardContent className="flex-1 p-0 overflow-hidden relative">
+              <div ref={transcriptScrollRef} onScroll={onTranscriptScroll} className="h-full overflow-y-auto px-4 py-3 sm:p-5 scroll-smooth">
                 {transcripts.length === 0 && !pendingText ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3 min-h-[150px]">
                     <Mic className={`w-8 h-8 opacity-20 ${isListening ? "animate-pulse" : ""}`} />
@@ -388,7 +424,16 @@ export default function LiveTranslatorPage() {
                     <div ref={transcriptEndRef} />
                   </div>
                 )}
-              </ScrollArea>
+              </div>
+              {/* Scroll to live button */}
+              {!transcriptAtBottom && transcripts.length > 0 && (
+                <button
+                  onClick={() => { transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" }); setTranscriptAtBottom(true); }}
+                  className="absolute bottom-3 right-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-full px-3 py-1.5 text-xs font-semibold shadow-lg flex items-center gap-1 transition-all animate-bounce"
+                >
+                  <ArrowDown className="w-3 h-3" /> Live
+                </button>
+              )}
             </CardContent>
           </Card>
         </div>
