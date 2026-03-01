@@ -152,15 +152,23 @@ export default function LiveTranslatorPage() {
               </div>
 
               {/* Interval */}
-              <div className="col-span-2 flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="text-xs text-slate-400 w-6 text-right">{intervalSeconds}s</span>
-                <Slider
-                  min={5} max={60} step={5}
-                  value={[intervalSeconds]}
-                  onValueChange={(vals) => setIntervalSeconds(vals[0])}
-                  className="flex-1"
-                />
+              <div className="col-span-2 flex items-center gap-3 bg-slate-800/30 border border-white/5 rounded-lg px-3 py-2">
+                <Clock className="w-4 h-4 text-violet-400 shrink-0" />
+                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold shrink-0">Interval</label>
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500">5s</span>
+                  <Slider
+                    min={5} max={60} step={5}
+                    value={[intervalSeconds]}
+                    onValueChange={(vals) => setIntervalSeconds(vals[0])}
+                    className="flex-1"
+                  />
+                  <span className="text-[10px] text-slate-500">60s</span>
+                </div>
+                <span className={`text-sm font-bold min-w-[36px] text-center px-2 py-0.5 rounded-md ${isListening
+                    ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                    : "bg-slate-700/50 text-slate-300"
+                  }`}>{intervalSeconds}s</span>
               </div>
             </div>
           </div>

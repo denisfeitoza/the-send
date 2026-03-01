@@ -150,6 +150,7 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const groqTimerRef = useRef<NodeJS.Timeout | null>(null);
     const sttEngineRef = useRef<STTEngine>(sttEngine);
+    const intervalSecondsRef = useRef(intervalSeconds);
 
     // Keep refs in sync
     useEffect(() => {
@@ -159,6 +160,10 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
     useEffect(() => {
         sttEngineRef.current = sttEngine;
     }, [sttEngine]);
+
+    useEffect(() => {
+        intervalSecondsRef.current = intervalSeconds;
+    }, [intervalSeconds]);
 
     // ─── Translation API call ──────────────────────────
     const translateText = useCallback(async (text: string, previousContext?: string[]): Promise<string> => {
@@ -449,14 +454,15 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
                 recorder.start(1000); // timeslice for progress feedback
                 mediaRecorderRef.current = recorder;
                 setApiStatus(prev => ({ ...prev, groq: "recording" }));
-                console.log(`[Groq] 🎙️ Recording cycle started (${intervalSeconds}s)`);
+                const currentInterval = intervalSecondsRef.current;
+                console.log(`[Groq] 🎙️ Recording cycle started (${currentInterval}s)`);
 
                 // Stop this recorder after interval — onstop will immediately start the next one
                 groqTimerRef.current = setTimeout(() => {
                     if (recorder.state === "recording") {
                         recorder.stop();
                     }
-                }, intervalSeconds * 1000);
+                }, currentInterval * 1000);
             };
 
             startRecordingCycle();
