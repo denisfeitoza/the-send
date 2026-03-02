@@ -426,11 +426,13 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
                 ? "audio/webm;codecs=opus"
                 : "audio/webm";
 
-            // Each cycle creates a fresh recorder so every blob has a valid WebM header
+            // Overlapping dual-recorder: next starts BEFORE current stops = ZERO gap
+            const OVERLAP_MS = 300;
+            const MIN_BLOB_SIZE = 1000;
+
             const startRecordingCycle = () => {
                 if (!isListeningRef.current || sttEngineRef.current !== "groq") return;
 
-                // Check stream is still alive
                 const tracks = stream.getAudioTracks();
                 if (!tracks.length || tracks[0].readyState !== "live") {
                     console.warn("[Groq] Stream track not alive, stopping");
@@ -446,34 +448,39 @@ export const LiveTranslatorProvider = ({ children }: { children: React.ReactNode
                     };
 
                     recorder.onstop = () => {
-                        // Small delay before next cycle to let stream stabilize
-                        if (isListeningRef.current && sttEngineRef.current === "groq") {
-                            setTimeout(startRecordingCycle, 50);
-                        }
-
-                        // Process the collected audio (async, doesn't block next recording)
                         if (chunks.length > 0) {
                             const blob = new Blob(chunks, { type: mimeType });
-                            console.log(`[Groq] 📤 Sending ${chunks.length} chunks, ${blob.size} bytes`);
-                            sendAudioToGroq(blob);
+                            if (blob.size >= MIN_BLOB_SIZE) {
+                                console.log(`[Groq] 📤 Sending ${chunks.length} chunks, ${blob.size} bytes`);
+                                sendAudioToGroq(blob);
+                            } else {
+                                console.log(`[Groq] ⏭️ Skipping tiny blob (${blob.size} bytes)`);
+                            }
                         }
                     };
 
-                    recorder.start(1000); // timeslice for progress feedback
+                    recorder.start(1000);
                     mediaRecorderRef.current = recorder;
                     setApiStatus(prev => ({ ...prev, groq: "recording" }));
                     const currentInterval = intervalSecondsRef.current;
                     console.log(`[Groq] 🎙️ Recording cycle started (${currentInterval}s)`);
 
-                    // Stop this recorder after interval — onstop will start the next one
+                    const stopDelay = Math.max(currentInterval * 1000 - OVERLAP_MS, 500);
+
                     groqTimerRef.current = setTimeout(() => {
-                        if (recorder.state === "recording") {
-                            recorder.stop();
+                        if (!isListeningRef.current || sttEngineRef.current !== "groq") {
+                            if (recorder.state === "recording") recorder.stop();
+                            return;
                         }
-                    }, currentInterval * 1000);
+                        // START next recorder FIRST (overlap)
+                        startRecordingCycle();
+                        // THEN stop current after overlap
+                        setTimeout(() => {
+                            if (recorder.state === "recording") recorder.stop();
+                        }, OVERLAP_MS);
+                    }, stopDelay);
                 } catch (err) {
                     console.warn("[Groq] MediaRecorder start failed, retrying in 200ms:", err);
-                    // Retry after a short delay
                     setTimeout(startRecordingCycle, 200);
                 }
             };
